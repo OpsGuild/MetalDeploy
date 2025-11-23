@@ -1,4 +1,4 @@
-name: 'VPS Deploy'
+name: 'CoreDeploy'
 description: 'Deploy applications to VPS servers via SSH with support for baremetal, Docker, or Kubernetes deployments'
 branding:
   icon: 'server'
