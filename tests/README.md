@@ -1,6 +1,6 @@
 # Testing Guide
 
-This directory contains tests for the VPS Deploy Action.
+This directory contains tests for the MetalDeploy Action.
 
 ## Running Tests
 
@@ -82,7 +82,7 @@ poetry run pytest tests/test_deploy.py::TestRunCommand::test_run_command_with_su
 ```python
 def test_my_function(mock_connection):
     from deploy import my_function
-    
+
     with patch('deploy.SOME_VAR', 'value'):
         result = my_function(mock_connection)
         assert result is not None
@@ -96,4 +96,3 @@ Tests run automatically on:
 - Manual trigger via workflow_dispatch
 
 See `.github/workflows/test.yml` for CI configuration.
-
