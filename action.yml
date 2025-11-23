@@ -98,7 +98,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        poetry install --no-dev
+        poetry install --only=main
     - name: Run deployment
       shell: bash
       run: |
