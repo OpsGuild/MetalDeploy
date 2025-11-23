@@ -13,32 +13,32 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Install dependencies
         run: |
           poetry install --with dev
-      
+
       - name: Run unit tests
         run: |
           poetry run pytest tests/ -v --cov=deploy --cov-report=xml --cov-report=html -m "not integration and not slow"
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -46,31 +46,31 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
-      
+
       - name: Validate action.yml
         run: |
           # Check if action.yml is valid YAML
           poetry run python -c "import yaml; yaml.safe_load(open('action.yml'))"
           echo "✅ action.yml is valid YAML"
-          
+
           # Check for required fields
           if ! grep -q "name:" action.yml; then
             echo "❌ Missing 'name' in action.yml"
             exit 1
           fi
-          
+
           if ! grep -q "description:" action.yml; then
             echo "❌ Missing 'description' in action.yml"
             exit 1
           fi
-          
+
           if ! grep -q "runs:" action.yml; then
             echo "❌ Missing 'runs' in action.yml"
             exit 1
           fi
-          
+
           echo "✅ action.yml validation passed"
-      
+
       - name: Check Python syntax
         run: |
           poetry run python -m py_compile deploy.py
@@ -81,39 +81,38 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
-      
+
       - name: Install dependencies
         run: |
           poetry install --with dev
-      
+
       - name: Run unit tests
         run: |
           poetry run pytest tests/ -v -m "not integration and not slow"
-      
+
       - name: Run flake8
         run: |
           poetry run flake8 . --max-line-length=100 --ignore=E501,W503 --exclude=.git,__pycache__,*.pyc,.pytest_cache,.venv,venv
         continue-on-error: true
-      
+
       - name: Check code formatting with black
         run: |
           poetry run black --check .
         continue-on-error: true
-      
+
       - name: Check import sorting with isort
         run: |
           poetry run isort --check-only .
         continue-on-error: true
-
