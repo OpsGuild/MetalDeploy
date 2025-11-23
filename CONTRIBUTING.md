@@ -1,6 +1,6 @@
-# Contributing to VPS Deploy Action
+# Contributing to MetalDeploy Action
 
-Thank you for your interest in contributing to VPS Deploy Action! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to MetalDeploy Action! This document provides guidelines and instructions for contributing.
 
 ## How to Contribute
 

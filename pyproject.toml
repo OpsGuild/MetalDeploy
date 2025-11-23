@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "vps-deploy-action"
+name = "metal-deploy-action"
 version = "1.0.0"
-description = "GitHub Action for deploying applications to VPS servers via SSH"
+description = "GitHub Action for deploying applications to baremetal servers via SSH"
 authors = ["OpsGuild <opsguild@example.com>"]
 readme = "README.md"
 packages = [{include = "deploy.py"}]

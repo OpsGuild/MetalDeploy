@@ -1,6 +1,6 @@
-# VPS Deploy Action
+# MetalDeploy Action
 
-A comprehensive GitHub Action for deploying applications to VPS servers via SSH. This action supports three deployment modes: baremetal (direct to server), Docker, and Kubernetes.
+A comprehensive GitHub Action for deploying applications to baremetal servers via SSH. This action supports three deployment modes: baremetal (direct to server), Docker, and Kubernetes.
 
 ## Features
 
@@ -17,7 +17,7 @@ A comprehensive GitHub Action for deploying applications to VPS servers via SSH.
 ### Basic Example
 
 ```yaml
-name: Deploy to VPS
+name: Deploy with MetalDeploy
 
 on:
   push:
@@ -29,14 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to VPS
-        uses: OpsGuild/VPS-Deploy@v1
+      - name: Deploy with MetalDeploy
+        uses: OpsGuild/MetalDeploy@v1
         with:
           git_url: ${{ secrets.GIT_URL }}
           git_auth_method: token
           git_token: ${{ secrets.GITHUB_TOKEN }}
           git_user: ${{ github.actor }}
-          remote_host: ${{ secrets.VPS_HOST }}
+          remote_host: ${{ secrets.REMOTE_HOST }}
           ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
           deployment_type: docker
           environment: prod
@@ -45,7 +45,7 @@ jobs:
 ### Advanced Example with Docker Hub
 
 ```yaml
-name: Deploy to VPS
+name: Deploy with MetalDeploy
 
 on:
   push:
@@ -57,13 +57,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to VPS
-        uses: OpsGuild/VPS-Deploy@v1
+      - name: Deploy with MetalDeploy
+        uses: OpsGuild/MetalDeploy@v1
         with:
           git_url: https://github.com/username/repo.git
           git_token: ${{ secrets.GITHUB_TOKEN }}
           git_user: ${{ github.actor }}
-          remote_host: ${{ secrets.VPS_HOST }}
+          remote_host: ${{ secrets.REMOTE_HOST }}
           remote_user: deploy
           ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
           environment: prod
@@ -127,8 +127,8 @@ baremetal_command: make deploy  # Optional: custom command to run
 
 **Example:**
 ```yaml
-- name: Deploy to VPS
-  uses: OpsGuild/VPS-Deploy@v1
+- name: Deploy with MetalDeploy
+  uses: OpsGuild/MetalDeploy@v1
   with:
     deployment_type: baremetal
     baremetal_command: "npm install && npm run build && pm2 restart app"
@@ -147,8 +147,8 @@ profile: production  # Optional: use Docker Compose profiles
 
 **Example:**
 ```yaml
-- name: Deploy to VPS
-  uses: OpsGuild/VPS-Deploy@v1
+- name: Deploy with MetalDeploy
+  uses: OpsGuild/MetalDeploy@v1
   with:
     deployment_type: docker
     profile: production
@@ -178,8 +178,8 @@ k8s_namespace: production  # Optional: defaults to 'default'
 
 **Example:**
 ```yaml
-- name: Deploy to VPS
-  uses: OpsGuild/VPS-Deploy@v1
+- name: Deploy with MetalDeploy
+  uses: OpsGuild/MetalDeploy@v1
   with:
     deployment_type: k8s
     k8s_manifest_path: k8s/
@@ -413,4 +413,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Support
 
-For issues and feature requests, please open an issue on the [GitHub repository](https://github.com/OpsGuild/VPS-Deploy).
+For issues and feature requests, please open an issue on the [GitHub repository](https://github.com/OpsGuild/MetalDeploy).

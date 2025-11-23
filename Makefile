@@ -41,4 +41,3 @@ clean:
 validate:
 	poetry run python -c "import yaml; yaml.safe_load(open('action.yml'))"
 	@echo "✅ action.yml is valid YAML"
-

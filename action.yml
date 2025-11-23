@@ -1,5 +1,5 @@
 name: 'BareMetal Pipeline'
-description: 'Deploy applications to VPS servers via SSH with support for baremetal, Docker, or Kubernetes deployments'
+description: 'Deploy applications to baremetal servers via SSH with support for baremetal, Docker, or Kubernetes deployments'
 branding:
   icon: 'server'
   color: 'blue'
