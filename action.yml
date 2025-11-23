@@ -98,11 +98,13 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        cd ${{ github.action_path }}
         poetry install --only=main
     - name: Run deployment
       shell: bash
       run: |
-        poetry run python ${{ github.action_path }}/deploy.py
+        cd ${{ github.action_path }}
+        poetry run python deploy.py
       env:
         GIT_URL: ${{ inputs.git_url }}
         GIT_AUTH_METHOD: ${{ inputs.git_auth_method }}
