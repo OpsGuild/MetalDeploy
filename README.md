@@ -121,8 +121,8 @@ baremetal_command: make deploy  # Optional: custom command to run
 
 **Default Behavior:**
 - If `baremetal_command` is specified, runs that command
-- Otherwise, looks for `Makefile` and runs `make {environment}`
-- If no Makefile, looks for `deploy.sh` and runs it
+- Otherwise, looks for `deploy.sh` and runs it
+- If no `deploy.sh`, looks for `Makefile` and runs `make {environment}`
 - If none found, requires `baremetal_command` to be specified
 
 **Example:**

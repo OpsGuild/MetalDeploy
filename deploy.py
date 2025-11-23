@@ -75,17 +75,13 @@ def setup_git_auth():
         else:
             git_ssh_key = GIT_SSH_KEY
 
-        # Try to decode base64, if it fails, assume it's raw
         try:
             decoded_key = base64.b64decode(git_ssh_key).decode("utf-8")
-            # Check if decoded result looks like an SSH key
             if "BEGIN" in decoded_key and "PRIVATE KEY" in decoded_key:
                 key_content = decoded_key
             else:
-                # Decoded but doesn't look like a key, use raw
                 key_content = git_ssh_key
         except Exception:
-            # Not base64 or decode failed, use as raw
             key_content = git_ssh_key
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".pem") as f:
@@ -130,12 +126,20 @@ def run_command(conn, command, force_sudo=False):
     escaped_command = command.replace("'", "'\"'\"'")
 
     # Wrap command in bash that sources the profile to make functions available
-    # Try .bashrc first, then .bash_profile, then .profile as fallback
     wrapped_command = (
-        f"bash -c '"
-        f"source {home_dir}/.bashrc 2>/dev/null || "
-        f"source {home_dir}/.bash_profile 2>/dev/null || "
-        f"source {home_dir}/.profile 2>/dev/null || true; "
+        f"bash -l -c '"
+        f'export PS1="$ "; '
+        f"set +e; "
+        f"if [ -f {home_dir}/.bashrc ]; then "
+        f"  source {home_dir}/.bashrc 2>/dev/null; "
+        f"fi; "
+        f"if [ -f {home_dir}/.bash_profile ]; then "
+        f"  source {home_dir}/.bash_profile 2>/dev/null; "
+        f"fi; "
+        f"if [ -f {home_dir}/.profile ]; then "
+        f"  source {home_dir}/.profile 2>/dev/null; "
+        f"fi; "
+        f"set -e; "
         f"{escaped_command}"
         f"'"
     )
@@ -481,30 +485,209 @@ def deploy_baremetal(conn):
             print(f"======= Running baremetal command: {BAREMETAL_COMMAND} =======")
             run_command(conn, BAREMETAL_COMMAND)
         else:
-            # Check if Makefile exists
-            makefile_check = conn.run(
-                "test -f Makefile && echo 'exists' || echo 'not exists'",
+            # Check for deploy.sh first
+            deploy_script_check = conn.run(
+                "test -f deploy.sh && echo 'exists' || echo 'not exists'",
                 hide=True,
             )
-            if "exists" in makefile_check.stdout:
-                print(f"======= Running make target: {ENVIRONMENT} =======")
-                run_command(conn, f"make {ENVIRONMENT}")
+            if "exists" in deploy_script_check.stdout:
+                print("======= Running deploy.sh =======")
+                conn.run("chmod +x deploy.sh")
+                run_command(conn, "./deploy.sh")
             else:
-                # Check for common deploy scripts
-                deploy_script_check = conn.run(
-                    "test -f deploy.sh && echo 'exists' || echo 'not exists'",
+                # Check if Makefile exists
+                makefile_check = conn.run(
+                    "test -f Makefile && echo 'exists' || echo 'not exists'",
                     hide=True,
                 )
-                if "exists" in deploy_script_check.stdout:
-                    print("======= Running deploy.sh =======")
-                    conn.run("chmod +x deploy.sh")
-                    run_command(conn, "./deploy.sh")
+                if "exists" in makefile_check.stdout:
+                    print(f"======= Running make target: {ENVIRONMENT} =======")
+                    run_command(conn, f"make {ENVIRONMENT}")
                 else:
                     raise ValueError(
-                        "No baremetal_command specified and no Makefile or deploy.sh found. "
+                        "No baremetal_command specified and no deploy.sh or Makefile found. "
                         "Please specify baremetal_command input."
                     )
     print("======= Baremetal deployment completed =======")
+
+
+def detect_database_type(conn):
+    """
+    Detect which database is being used in the deployment
+    Returns a list of detected database types (e.g., ['postgres', 'mariadb'])
+    """
+    databases = []
+    with conn.cd(GIT_SUBDIR):
+        db_patterns = {
+            "postgres": ["postgres", "postgresql", "postgres:"],
+            "mariadb": ["mariadb", "mariadb:"],
+            "mysql": ["mysql", "mysql:"],
+            "mongodb": ["mongo", "mongodb", "mongo:"],
+            "redis": ["redis", "redis:"],
+        }
+
+        compose_files = [
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "compose.yml",
+            "compose.yaml",
+        ]
+        for compose_file in compose_files:
+            check = conn.run(
+                f"test -f {compose_file} && echo 'exists' || echo 'not exists'",
+                hide=True,
+                warn=True,
+            )
+            if "exists" in check.stdout:
+                for db_type, patterns in db_patterns.items():
+                    if db_type in databases:
+                        continue
+                    for pattern in patterns:
+                        result = conn.run(
+                            f"grep -i '{pattern}' {compose_file} 2>/dev/null | head -1 || true",
+                            hide=True,
+                            warn=True,
+                        )
+                        if result.stdout.strip():
+                            databases.append(db_type)
+                            break
+
+        # Check k8s manifests
+        if DEPLOYMENT_TYPE == "k8s":
+            manifest_paths = ["k8s", "manifests", "kubernetes"]
+            for path in manifest_paths:
+                check = conn.run(
+                    f"test -d {path} && echo 'exists' || echo 'not exists'",
+                    hide=True,
+                    warn=True,
+                )
+                if "exists" in check.stdout:
+                    for db_type, patterns in db_patterns.items():
+                        if db_type in databases:
+                            continue
+                        for pattern in patterns:
+                            result = conn.run(
+                                f"grep -ri '{pattern}' {path}/ 2>/dev/null | head -1 || true",
+                                hide=True,
+                                warn=True,
+                            )
+                            if result.stdout.strip():
+                                databases.append(db_type)
+                                break
+
+    return databases
+
+
+def get_database_volume_paths(conn, db_type):
+    """
+    Extract actual volume paths from docker-compose files for a given database type
+    Returns a list of paths that need permission fixes
+    """
+    paths = []
+    with conn.cd(GIT_SUBDIR):
+        compose_files = [
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "compose.yml",
+            "compose.yaml",
+        ]
+
+        for compose_file in compose_files:
+            check = conn.run(
+                f"test -f {compose_file} && echo 'exists' || echo 'not exists'",
+                hide=True,
+                warn=True,
+            )
+            if "exists" not in check.stdout:
+                continue
+
+            # Look for volume mounts that contain the database type in the path
+            # Match patterns like: - ./data/postgres:/var/lib/postgresql/data
+            # or: - ./postgres_data:/var/lib/postgresql/data
+            volume_result = conn.run(
+                f"grep -iE '\\s+-\\s+.*{db_type}.*:/' {compose_file} 2>/dev/null || true",
+                hide=True,
+                warn=True,
+            )
+
+            for line in volume_result.stdout.strip().split("\n"):
+                line = line.strip()
+                if ":/" in line:
+                    parts = line.split(":/")
+                    if len(parts) > 0:
+                        local_path = parts[0].strip().lstrip("-").strip()
+                        if local_path and (
+                            local_path.startswith("./") or local_path.startswith("/")
+                        ):
+                            if local_path not in paths:
+                                paths.append(local_path)
+
+    return paths
+
+
+def fix_database_permissions(conn):
+    """
+    Fix database data directory permissions dynamically based on detected database types
+    Supports: PostgreSQL, MariaDB, MySQL, MongoDB, Redis
+    Detects actual volume paths from docker-compose files
+    """
+    databases = detect_database_type(conn)
+    if not databases:
+        return
+
+    db_configs = {
+        "postgres": ("postgres", "999", "999", "700"),
+        "mariadb": ("mariadb", "999", "999", "750"),
+        "mysql": ("mysql", "999", "999", "750"),
+        "mongodb": ("mongodb", "999", "999", "755"),
+        "redis": ("redis", "999", "999", "755"),
+    }
+
+    with conn.cd(GIT_SUBDIR):
+        for db_type in databases:
+            if db_type not in db_configs:
+                continue
+
+            dir_name, user_id, group_id, perms = db_configs[db_type]
+
+            volume_paths = get_database_volume_paths(conn, db_type)
+
+            # Also check for existing directories that match the pattern
+            existing_dirs = conn.run(
+                f"find . -type d -name '*{dir_name}*' -path '*/data/*' -o -type d -name '*{dir_name}*' -path '*/volumes/*' 2>/dev/null | head -10 || true",
+                hide=True,
+                warn=True,
+            )
+            for existing_dir in existing_dirs.stdout.strip().split("\n"):
+                if existing_dir.strip() and existing_dir.strip() not in volume_paths:
+                    volume_paths.append(existing_dir.strip())
+
+            # Only fix permissions if paths were found
+            if not volume_paths:
+                continue
+
+            print(f"======= Fixing {db_type.upper()} data directory permissions =======")
+
+            for path in volume_paths:
+                if not path.strip():
+                    continue
+
+                normalized_path = path.lstrip("./")
+                if not normalized_path.startswith("/"):
+                    full_path = f"./{normalized_path}"
+                else:
+                    full_path = normalized_path
+
+                run_command(
+                    conn,
+                    f"""
+                    bash -c '
+                        mkdir -p {full_path} || true &&
+                        chown -R {user_id}:{group_id} {full_path} || true &&
+                        chmod -R {perms} {full_path} || true
+                    '
+                    """.strip(),
+                )
 
 
 def deploy_docker(conn):
@@ -596,6 +779,8 @@ def deploy(conn):
     """
     Main deploy function that routes to the appropriate deployment method
     """
+
+    fix_database_permissions(conn)
 
     if DEPLOYMENT_TYPE == "baremetal":
         deploy_baremetal(conn)
