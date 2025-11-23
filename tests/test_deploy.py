@@ -51,9 +51,26 @@ class TestRunCommand:
     def test_run_command_with_sudo(self, mock_connection, monkeypatch):
         monkeypatch.setattr(deploy, "USE_SUDO", True)
         monkeypatch.setattr(deploy, "REMOTE_PASSWORD", None)
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
 
         deploy.run_command(mock_connection, "test command")
-        mock_connection.run.assert_called_once_with("sudo test command", warn=False)
+        call_args = str(mock_connection.run.call_args)
+        # Should use sudo and source bashrc
+        assert "sudo" in call_args
+        assert "bash -c" in call_args or "source" in call_args
+        assert "test command" in call_args
+
+    def test_run_command_with_sudo_and_password(self, mock_connection, monkeypatch):
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", "testpass")
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
+
+        deploy.run_command(mock_connection, "test command")
+        call_args = str(mock_connection.run.call_args)
+        # Should use sudo with password and source bashrc
+        assert "sudo -S" in call_args
+        assert "bash -c" in call_args or "source" in call_args
+        assert "test command" in call_args
 
     def test_run_command_without_sudo(self, mock_connection, monkeypatch):
         monkeypatch.setattr(deploy, "USE_SUDO", False)
@@ -64,10 +81,74 @@ class TestRunCommand:
     def test_run_command_force_sudo(self, mock_connection, monkeypatch):
         monkeypatch.setattr(deploy, "USE_SUDO", False)
         monkeypatch.setattr(deploy, "REMOTE_PASSWORD", "testpass")
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
 
         deploy.run_command(mock_connection, "test command", force_sudo=True)
         # Should use sudo even if USE_SUDO is False
-        assert "sudo" in str(mock_connection.run.call_args)
+        call_args = str(mock_connection.run.call_args)
+        assert "sudo" in call_args
+
+    def test_run_command_sources_bashrc_for_root(self, mock_connection, monkeypatch):
+        """Test that commands with sudo source /root/.bashrc for root user"""
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", None)
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
+
+        deploy.run_command(mock_connection, "staging up")
+        call_args = str(mock_connection.run.call_args)
+        # Should source /root/.bashrc
+        assert "/root/.bashrc" in call_args
+        assert "staging up" in call_args
+
+    def test_run_command_sources_bashrc_for_non_root(self, mock_connection, monkeypatch):
+        """Test that commands with sudo source correct home directory for non-root user"""
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", None)
+        monkeypatch.setattr(deploy, "REMOTE_USER", "deploy")
+
+        deploy.run_command(mock_connection, "make deploy")
+        call_args = str(mock_connection.run.call_args)
+        # Should source /home/deploy/.bashrc
+        assert "/home/deploy/.bashrc" in call_args
+        assert "make deploy" in call_args
+
+    def test_run_command_handles_quotes_in_command(self, mock_connection, monkeypatch):
+        """Test that commands with quotes are properly escaped"""
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", None)
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
+
+        deploy.run_command(mock_connection, "echo 'test with quotes'")
+        call_args = str(mock_connection.run.call_args)
+        # Should handle quotes properly
+        assert "echo" in call_args
+        assert "test with quotes" in call_args or "quotes" in call_args
+
+    def test_run_command_sources_multiple_profile_files(self, mock_connection, monkeypatch):
+        """Test that the command tries multiple profile files as fallback"""
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", None)
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
+
+        deploy.run_command(mock_connection, "test command")
+        call_args = str(mock_connection.run.call_args)
+        # Should try .bashrc, .bash_profile, and .profile
+        assert ".bashrc" in call_args
+        assert ".bash_profile" in call_args or ".profile" in call_args
+
+    def test_run_command_with_complex_baremetal_command(self, mock_connection, monkeypatch):
+        """Test that complex baremetal commands with && work correctly"""
+        monkeypatch.setattr(deploy, "USE_SUDO", True)
+        monkeypatch.setattr(deploy, "REMOTE_PASSWORD", "mypass")
+        monkeypatch.setattr(deploy, "REMOTE_USER", "root")
+
+        deploy.run_command(mock_connection, "staging up && staging migrate")
+        call_args = str(mock_connection.run.call_args)
+        # Should include both commands
+        assert "staging up" in call_args
+        assert "staging migrate" in call_args
+        assert "&&" in call_args
+        assert "/root/.bashrc" in call_args
 
 
 class TestInstallDependencies:
