@@ -30,7 +30,7 @@ PROFILE = os.getenv("PROFILE")
 BAREMETAL_COMMAND = os.getenv("BAREMETAL_COMMAND")
 K8S_MANIFEST_PATH = os.getenv("K8S_MANIFEST_PATH")
 K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "default")
-USE_SUDO = os.getenv("USE_SUDO", "true").lower() == "true"
+USE_SUDO = os.getenv("USE_SUDO", "false").lower() == "true"
 PROJECT_NAME = GIT_URL.split("/")[-1].split(".")[0] if GIT_URL else ""
 GIT_DIR = os.path.join(REMOTE_DIR, PROJECT_NAME) if PROJECT_NAME else REMOTE_DIR
 GIT_SUBDIR = os.path.join(GIT_DIR, "")
