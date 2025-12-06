@@ -122,7 +122,7 @@ class TestEdgeCases:
 
     def test_special_characters_in_commands(self, mock_connection, monkeypatch):
         """Test handling special characters in commands"""
-        monkeypatch.setattr(deploy, "BAREMETAL_COMMAND", "echo 'test with \"quotes\" and $vars'")
+        monkeypatch.setattr(deploy, "DEPLOY_COMMAND", "echo 'test with \"quotes\" and $vars'")
 
         with patch.object(deploy, "run_command") as mock_run:
             deploy.deploy_baremetal(mock_connection)
@@ -132,7 +132,7 @@ class TestEdgeCases:
     def test_very_long_commands(self, mock_connection, monkeypatch):
         """Test handling very long commands"""
         long_cmd = " && ".join([f"echo {i}" for i in range(100)])
-        monkeypatch.setattr(deploy, "BAREMETAL_COMMAND", long_cmd)
+        monkeypatch.setattr(deploy, "DEPLOY_COMMAND", long_cmd)
 
         with patch.object(deploy, "run_command") as mock_run:
             deploy.deploy_baremetal(mock_connection)
@@ -238,7 +238,7 @@ class TestEndToEndFlow:
     def test_full_baremetal_deployment_flow(self, mock_connection, monkeypatch):
         """Test complete baremetal deployment flow"""
         monkeypatch.setenv("DEPLOYMENT_TYPE", "baremetal")
-        monkeypatch.setenv("BAREMETAL_COMMAND", "make deploy")
+        monkeypatch.setenv("DEPLOY_COMMAND", "make deploy")
 
         with patch.object(deploy, "install_dependencies"), patch.object(
             deploy, "clone_repo"

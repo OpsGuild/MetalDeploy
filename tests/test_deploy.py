@@ -138,7 +138,7 @@ class TestRunCommand:
         assert ".bash_profile" in call_args
         assert ".profile" in call_args
 
-    def test_run_command_with_complex_baremetal_command(self, mock_connection, monkeypatch):
+    def test_run_command_with_complex_deploy_command(self, mock_connection, monkeypatch):
         """Test that complex baremetal commands with && work correctly"""
         monkeypatch.setattr(deploy, "USE_SUDO", True)
         monkeypatch.setattr(deploy, "REMOTE_PASSWORD", "mypass")
@@ -234,7 +234,7 @@ class TestDeployFunctions:
             assert any("profile" in str(call).lower() for call in calls)
 
     def test_deploy_baremetal_with_command(self, mock_connection, set_env_vars, monkeypatch):
-        monkeypatch.setattr(deploy, "BAREMETAL_COMMAND", "make deploy")
+        monkeypatch.setattr(deploy, "DEPLOY_COMMAND", "make deploy")
 
         with patch.object(deploy, "run_command") as mock_run:
             deploy.deploy_baremetal(mock_connection)
@@ -250,7 +250,7 @@ class TestDeployFunctions:
             return Mock(stdout="")
 
         mock_connection.run.side_effect = mock_test
-        monkeypatch.setattr(deploy, "BAREMETAL_COMMAND", None)
+        monkeypatch.setattr(deploy, "DEPLOY_COMMAND", None)
 
         with patch.object(deploy, "run_command") as mock_run:
             deploy.deploy_baremetal(mock_connection)
@@ -271,7 +271,7 @@ class TestDeployFunctions:
             return Mock(stdout="")
 
         mock_connection.run.side_effect = mock_test
-        monkeypatch.setattr(deploy, "BAREMETAL_COMMAND", None)
+        monkeypatch.setattr(deploy, "DEPLOY_COMMAND", None)
         monkeypatch.setattr(deploy, "ENVIRONMENT", "dev")
 
         with patch.object(deploy, "run_command") as mock_run:
