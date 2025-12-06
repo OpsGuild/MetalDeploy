@@ -5,8 +5,8 @@ branding:
   color: 'blue'
 inputs:
   git_url:
-    description: 'Git repository URL to clone and deploy'
-    required: true
+    description: 'Git repository URL to clone and deploy (defaults to current repository URL)'
+    required: false
   git_auth_method:
     description: 'Git authentication method: token (HTTPS with token), ssh (SSH key), or none (public repos only)'
     required: false
@@ -15,7 +15,7 @@ inputs:
     description: 'GitHub token for authentication (required if git_auth_method is token)'
     required: false
   git_user:
-    description: 'GitHub username (required if git_auth_method is token)'
+    description: 'GitHub username (required if git_auth_method is token, defaults to GitHub actor)'
     required: false
   git_ssh_key:
     description: 'SSH private key for Git authentication (required if git_auth_method is ssh). Can be same as ssh_key'
@@ -23,7 +23,7 @@ inputs:
   deployment_type:
     description: 'Deployment type: baremetal (direct to server), docker (Docker Compose), or k8s (Kubernetes)'
     required: false
-    default: 'docker'
+    default: 'baremetal'
   environment:
     description: 'Deployment environment (dev, staging, prod)'
     required: false
@@ -63,7 +63,7 @@ inputs:
   profile:
     description: 'Docker Compose profile to use (for docker deployment type)'
     required: false
-  baremetal_command:
+  deploy_command:
     description: 'Command to run for baremetal deployment (e.g., "make deploy" or "./deploy.sh"). Defaults to "make {environment}" if Makefile exists'
     required: false
   k8s_manifest_path:
@@ -149,6 +149,8 @@ runs:
         GIT_AUTH_METHOD: ${{ inputs.git_auth_method }}
         GIT_TOKEN: ${{ inputs.git_token }}
         GIT_USER: ${{ inputs.git_user }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_ACTOR: ${{ github.actor }}
         GIT_SSH_KEY: ${{ inputs.git_ssh_key }}
         DEPLOYMENT_TYPE: ${{ inputs.deployment_type }}
         ENVIRONMENT: ${{ inputs.environment }}
@@ -163,7 +165,7 @@ runs:
         AWS_REGION: ${{ inputs.aws_region }}
         AWS_ACCOUNT_ID: ${{ inputs.aws_account_id }}
         PROFILE: ${{ inputs.profile }}
-        BAREMETAL_COMMAND: ${{ inputs.baremetal_command }}
+        DEPLOY_COMMAND: ${{ inputs.deploy_command }}
         K8S_MANIFEST_PATH: ${{ inputs.k8s_manifest_path }}
         K8S_NAMESPACE: ${{ inputs.k8s_namespace }}
         USE_SUDO: ${{ inputs.use_sudo }}

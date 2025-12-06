@@ -7,12 +7,20 @@ from fabric import Connection
 from invoke import Responder
 
 # Configuration from environment variables
-GIT_URL = os.getenv("GIT_URL", "")
+# Default GIT_URL to current repository if in GitHub Actions context
+git_url_env = os.getenv("GIT_URL", "")
+if not git_url_env and os.getenv("GITHUB_REPOSITORY"):
+    # Construct GitHub repository URL from GITHUB_REPOSITORY (format: owner/repo)
+    github_repo = os.getenv("GITHUB_REPOSITORY")
+    GIT_URL = f"https://github.com/{github_repo}.git"
+else:
+    GIT_URL = git_url_env
+
 GIT_AUTH_METHOD = os.getenv("GIT_AUTH_METHOD", "token").lower()
 GIT_TOKEN = os.getenv("GIT_TOKEN", "")
-GIT_USER = os.getenv("GIT_USER", "")
+GIT_USER = os.getenv("GIT_USER", os.getenv("GITHUB_ACTOR", ""))
 GIT_SSH_KEY = os.getenv("GIT_SSH_KEY")
-DEPLOYMENT_TYPE = os.getenv("DEPLOYMENT_TYPE", "docker").lower()
+DEPLOYMENT_TYPE = os.getenv("DEPLOYMENT_TYPE", "baremetal").lower()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
 REMOTE_USER = os.getenv("REMOTE_USER", "root")
 REMOTE_HOST = os.getenv("REMOTE_HOST", "127.0.0.1")
@@ -27,7 +35,7 @@ SSH_KEY = os.getenv("SSH_KEY")
 REMOTE_PASSWORD = os.getenv("REMOTE_PASSWORD")
 REGISTRY_TYPE = os.getenv("REGISTRY_TYPE", "ghcr")
 PROFILE = os.getenv("PROFILE")
-BAREMETAL_COMMAND = os.getenv("BAREMETAL_COMMAND")
+DEPLOY_COMMAND = os.getenv("DEPLOY_COMMAND")
 K8S_MANIFEST_PATH = os.getenv("K8S_MANIFEST_PATH")
 K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "default")
 USE_SUDO = os.getenv("USE_SUDO", "false").lower() == "true"
@@ -487,9 +495,9 @@ def deploy_baremetal(conn):
     """
 
     with conn.cd(GIT_SUBDIR):
-        if BAREMETAL_COMMAND:
-            print(f"======= Running baremetal command: {BAREMETAL_COMMAND} =======")
-            run_command(conn, BAREMETAL_COMMAND)
+        if DEPLOY_COMMAND:
+            print(f"======= Running deploy command: {DEPLOY_COMMAND} =======")
+            run_command(conn, DEPLOY_COMMAND)
         else:
             # Check for deploy.sh first
             deploy_script_check = conn.run(
@@ -511,8 +519,8 @@ def deploy_baremetal(conn):
                     run_command(conn, f"make {ENVIRONMENT}")
                 else:
                     raise ValueError(
-                        "No baremetal_command specified and no deploy.sh or Makefile found. "
-                        "Please specify baremetal_command input."
+                        "No deploy_command specified and no deploy.sh or Makefile found. "
+                        "Please specify deploy_command input."
                     )
     print("======= Baremetal deployment completed =======")
 
