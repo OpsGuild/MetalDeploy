@@ -8,7 +8,7 @@ from invoke import Responder
 
 # Configuration from environment variables
 # Default GIT_URL to current repository if in GitHub Actions context
-git_url_env = os.getenv("GIT_URL", "")
+git_url_env = os.getenv("GIT_URL", "").strip()
 if not git_url_env and os.getenv("GITHUB_REPOSITORY"):
     # Construct GitHub repository URL from GITHUB_REPOSITORY (format: owner/repo)
     github_repo = os.getenv("GITHUB_REPOSITORY")
@@ -18,7 +18,8 @@ else:
 
 GIT_AUTH_METHOD = os.getenv("GIT_AUTH_METHOD", "token").lower()
 GIT_TOKEN = os.getenv("GIT_TOKEN", "")
-GIT_USER = os.getenv("GIT_USER", os.getenv("GITHUB_ACTOR", ""))
+# Use GITHUB_ACTOR as fallback if GIT_USER is not set or is empty
+GIT_USER = os.getenv("GIT_USER", "").strip() or os.getenv("GITHUB_ACTOR", "")
 GIT_SSH_KEY = os.getenv("GIT_SSH_KEY")
 DEPLOYMENT_TYPE = os.getenv("DEPLOYMENT_TYPE", "baremetal").lower()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
